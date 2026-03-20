@@ -8,21 +8,21 @@ echo "Working directory: $(pwd)"
 # if git diff-index --quiet HEAD --; then
 
 # Check if there are any changes (including untracked files)
-if [[ -z $(sudo git status --porcelain) ]]; then
+if [[ -z $(git status --porcelain) ]]; then
 	echo "No changes to commit."
 else
 # Add all changes to the staging area
-	sudo git add -A
+	git add -A
 
 # Prompt the user for a commit message
 	echo "Enter the commit message:"
 	read commitMessage
 
 # Commit the changes
-	sudo git commit -m "$commitMessage"
+	git commit -m "$commitMessage"
 
 # Push the changes to the main branch
-	if sudo git push origin main; then
+	if git push origin main; then
 		echo "Push successful."
 	else
 	echo "Push failed."
