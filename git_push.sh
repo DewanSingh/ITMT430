@@ -8,11 +8,11 @@ echo "Working directory: $(pwd)"
 # if git diff-index --quiet HEAD --; then
 
 # Check if there are any changes (including untracked files)
-if [[ -z $(git status --porcelain) ]]; then
+if [[ -z $(sudo git status --porcelain) ]]; then
 	echo "No changes to commit."
 else
 # Add all changes to the staging area
-	git add -A
+	sudo git add -A
 
 # Prompt the user for a commit message
 	echo "Enter the commit message:"
