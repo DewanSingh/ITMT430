@@ -79,13 +79,12 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'blog_db',  # Create a database with this name in MySQL
-        'USER': 'root',
-        'PASSWORD': 'password',
-        'HOST': '127.0.0.1',
+        'USER': 'coursera',
+        'PASSWORD': 'coursera',
+        'HOST': 'coursera-mysql-instance.c722q0sgui08.us-west-1.rds.amazonaws.com',
         'PORT': '3306',
     }
 }
-
 
 
 # Password validation
