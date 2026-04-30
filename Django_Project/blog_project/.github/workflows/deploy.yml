@@ -69,5 +69,4 @@ jobs:
               -e AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY' \
               $ECR_REGISTRY/blog_project-web:$IMAGE_TAG
             sudo docker exec blog_web python manage.py migrate
-          "
 
