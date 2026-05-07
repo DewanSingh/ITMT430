@@ -610,3 +610,603 @@ http://your-domain.com
 To get the public IP of your EC2 instance:
 aws ec2 describe-instances --instance-ids your-instance-id --query 'Reservations[0].Instances[0].PublicIpAddress' --output text
 
+##	Sprint 4	##
+Step 1: Update Post Model and Create Entry Form for Blog Posts
+
+1. Navigate to your Django project directory on your development Ubuntu Desktop machine.
+
+2. Update your existing Post model in blog/models.py as highlighted below:
+
+# blog/models.py
+from django.db import models
+
+class Post(models.Model):
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    image = models.ImageField(upload_to='blog_images/', blank=True, null=True)
+
+    def __str__(self):
+        return self.title
+
+3. Create a new form (file) for blog posts:
+
+# blog/forms.py
+from django import forms
+from .models import Post
+
+class PostForm(forms.ModelForm):
+    class Meta:
+        model = Post
+        fields = ['title', 'content', 'image']
+
+4. Create a template (file) for blog details:
+
+<!-- blog/templates/blog/post_detail.html -->
+
+{% block content %}
+  <h2>{{ post.title }}</h2>
+  <p><strong>Author:</strong> {{ post.author }}</p>
+  <p><strong>Created on:</strong> {{ post.created_date }}</p>
+  <div>
+    <p>{{ post.content }}</p>
+    {% if post.image %}
+      <img src="{{ post.image.url }}" alt="{{ post.title }}">
+    {% endif %}
+  </div>
+  <a href="{% url 'create_post' %}">Create New Post</a>
+{% endblock %}
+
+5. Update your views to handle the form, post detail, redirect and error actions:
+
+# blog/views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import Post
+from .forms import PostForm
+
+def create_post(request):
+    if request.method == 'POST':
+        form = PostForm(request.POST, request.FILES)
+        if form.is_valid():
+            post = form.save(commit=False)
+            post.author = request.user
+            post.save()
+            return redirect('post_detail', pk=post.pk)
+    else:
+        form = PostForm()
+    return render(request, 'blog/create_post.html', {'form': form})
+
+def post_list(request):
+    posts = Post.objects.all()
+    return render(request, 'blog/post_list.html', {'posts': posts})
+
+def post_detail(request, pk):
+    posts = get_object_or_404(Post, pk=pk) 
+    return render(request, 'blog/post_detail.html', {'post': posts})
+
+6. Create a template (file) for the form:
+
+<!-- blog/templates/blog/create_post.html -->
+{# {% extends 'base.html' %} #}
+
+{% block content %}
+  <h2>Create a New Blog Post</h2>
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Post</button>
+  </form>
+{% endblock %}
+
+7. Add the URL patterns:
+
+# blog/urls.py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    # ... other patterns ...
+    path('post/new/', views.create_post, name='create_post'),
+    path('post/<int:pk>/', views.post_detail, name='post_detail'),
+]
+
+Step 2: Add needed dependency to your project
+
+1. As you added Django's ImageField in Step 1 you will need the Pillow library to handle image processing. Navigate to the root directory of your project and acivate your virtual environment if need be as follows:
+
+source venv/bin/activate
+
+2. Enter in a command at your prompt
+python3 -m pip install Pillow
+
+3. Next ‘Freeze’ your dependencies to requirements.txt with the comand:
+pip freeze > requirements.txt
+
+Step 3: Configure Admin Access
+
+1. Create a superuser account if you haven't already. 
+
+Before creating the superuser, make sure your RDS instance is running by performing the following:
+
+a. Go to AWS Console → RDS
+•	Find your instance: coursera-mysql-instance...
+•	Make sure its status is "available"
+If it says:
+•	"stopped" or "stopping" → click Start under Actions
+•	"available" → it's already running
+________________________________________
+b. Wait Until the Status = available
+Starting an RDS instance can take a few minutes. You cannot connect until it's fully up.
+
+Once the instance is started, perform the following command at your prompt:
+
+python3 manage.py createsuperuser
+
+2. Update your admin.py file in entirety to register your models:
+
+# blog/admin.py
+from django.contrib import admin
+from .models import Post
+
+@admin.register(Post)
+class PostAdmin(admin.ModelAdmin):
+    list_display = ('title', 'created_at')
+    list_filter = ('title', 'created_at')
+    search_fields = ('title', 'content')
+
+Step 4: AWS S3 Integration for Image Uploads
+
+1. Install required packages:
+Make sure to activate your virtual environment
+source venv/bin/activate
+then install dependencies…
+
+pip install django-storages boto3
+
+Also include an additional dependency 
+
+pip install python-decouple
+
+2.  Set up policy as follows for List/Read/Write access for any storage buckets you create 
+
+Step-by-Step Workflow for Custom Policy creation
+A. To Create a Custom Policy
+1.	Go to the IAM Console.
+2.	In the left menu, click Policies.
+3.	Click the Create policy button at the top of the Policies page.
+4.	Select the JSON tab to define your policy and override any given code and add the following code in the Policy editor:
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:CreateBucket"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListAllMyBuckets"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": "arn:aws:s3:::*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:GetObjectAcl"
+            ],
+            "Resource": [
+                "arn:aws:s3:::coursera-bucket",
+                "arn:aws:s3:::coursera-bucket/*"
+            ]
+        }
+    ]
+}
+
+5.	Click Next, review, name your policy, and save it.
+
+B. To Attach the Policy to a User
+1.	In the IAM Console, go to Users and select your user.
+2.	Go to the Permissions tab.
+3.	Click Add permissions.
+4.	Choose Attach policies directly.
+5.	In the list, search for the custom policy you just created.
+6.	Select it and click Next and then Add permissions.
+
+
+3. Create S3 bucket name (coursera-bucket) via your command prompt:
+
+aws s3api create-bucket --bucket coursera-bucket --region us-east-1 > /dev/null 2>&1
+
+4. Create also a S3 Bucket policy in AWS Console
+     1. Navigate to Amazon S3
+1.	In the AWS Console, in the Services menu, click “S3” under Storage.
+o	Or search for “S3” in the search bar and click the result.
+2.	Select the Bucket
+From the list of S3 buckets, click on the name of the bucket you want to configure.
+3.   Go to Permissions Tab
+In the bucket dashboard, click the “Permissions” tab (top middle section).
+4.   Open the Bucket Policy Editor
+a.   Scroll down to the “Bucket policy” section.
+b.   Click the “Edit” button on the right.
+      2.  Add or Modify Bucket Policy
+       	In the policy editor that appears, paste or edit the JSON policy.
+     	  Example: Public Read-Only Access Policy
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowPublicRead",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::coursera-bucket/*"
+        }
+    ]
+} 
+🔹 Replace your-bucket-name with your actual bucket name if different.
+
+3.	Save the Policy
+Click the “Save changes” button at the bottom of the editor.
+
+🔹 Confirm Permissions Are Correct
+•	Scroll through the Permissions tab to confirm:
+o	Block Public Access settings may override your policy.
+	If needed, click Edit under "Block Public Access" and disable it (recommended for users to view sensitive data).
+	Check the box to confirm and click Save changes.
+Notes
+•	Principal defines who has access.
+o	"*" = everyone (use with caution).
+•	Action defines what they can do (e.g., "s3:GetObject" for reading files).
+•	Resource defines where (ARN of the bucket or objects).
+________________________________________
+
+5. Add the following to your settings.py (ok to add to the end of file):
+
+# settings.py
+from decouple import config
+
+INSTALLED_APPS += ['storages']
+
+AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID') 
+AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY') AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME') AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None
+MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/"
+
+import sys
+print("FORCING S3 STORAGE BACKEND")
+from storages.backends.s3boto3 import S3Boto3Storage
+sys.modules['django.core.files.storage'].__dict__['default_storage'] = S3Boto3Storage()
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+
+*Also in settings.py its critical to now change database port to 3306 exclusively for RDS test on EC2 server
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'blog_db',  # Create a database with this name in MySQL
+        'USER': 'coursera',
+        'PASSWORD': 'coursera',
+        'HOST': 'coursera-mysql-instance.csbkk0sq0j1o.us-east-1.rds.amazonaws.com',
+        'PORT': 3306
+        #'PORT': '3307' if os.getenv('CI') else '3306',
+    }
+}
+
+
+Include environmental variable temporary settings for the above configuration settings as shown below at your command prompt. Set values for your variables with information containing your id/key/bucket name (coursera-bucket) 
+
+export AWS_ACCESS_KEY_ID=your-access-key-id
+export AWS_SECRET_ACCESS_KEY=your-secret-access-key
+export AWS_STORAGE_BUCKET_NAME=your-bucket-name
+
+To make the variables permanent (recommended), add them to your bash shell profile by opening an editor as follows:
+
+nano ~/.bashrc
+
+Save file. Then source it as follows:
+source ~/.bashrc
+
+Handy pip commands to know
+pip freeze
+pip list
+pip show <package>
+pip freeze > requirements.txt (overwrites your requirements.txt with exact versions of all packages currently installed in your environment, making your setup reproducible. Be aware that this includes all installed packages, not just manually added ones) 
+pip install -r requirements.txt (installs packages, doesn’t update file with version numbers)
+
+Example pip list for project python files.
+
+Step 6: Implement AWS CloudWatch Monitoring
+
+1. Create a new file monitoring.py in your Django project under the blog folder as follows:
+
+import boto3
+import time
+from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+def log_to_cloudwatch(message, log_group, log_stream):
+    try:
+        client = boto3.client('logs',
+                              aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                              aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                              region_name=settings.AWS_S3_REGION_NAME)
+        # Create log group if it doesn't exist
+        try:
+            client.create_log_group(logGroupName=log_group)
+        except client.exceptions.ResourceAlreadyExistsException:
+            pass
+
+        # Create log stream if it doesn't exist
+        try:
+            client.create_log_stream(logGroupName=log_group, logStreamName=log_stream)
+        except client.exceptions.ResourceAlreadyExistsException:
+            pass
+
+        response = client.put_log_events(
+            logGroupName=log_group,
+            logStreamName=log_stream,
+            logEvents=[
+                {
+                    'timestamp': int(time.time() * 1000),
+                    'message': message
+                },
+            ]
+        )
+        logger.info(f"Successfully logged to CloudWatch: {message}")
+        return response
+    except Exception as e:
+        logger.error(f"Error logging to CloudWatch: {str(e)}")
+        return None
+
+*Make sure to add a CloudWatch policy to ensure logging occurs upon posts, etc as follows
+Create a CloudWatchLogsCreationPolicy in the AWS IAM Console:
+1. Open IAM (Identity and Access Management)
+•	In the AWS Console search bar, type “IAM”
+•	Click on IAM to open the dashboard.
+2. Go to “Policies”
+•	In the left-hand navigation pane, click “Policies” under Access management
+3. Click “Create Policy”
+•	Click the “Create policy” button at the top right.
+4. Select the “JSON” Tab
+•	At the top, click on the “JSON” tab (next to Visual editor)
+5. Paste the Provided JSON
+Replace all existing content with the following policy JSON:
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",          // Allows creation of new log groups
+        "logs:CreateLogStream",       // Allows creating new log streams inside a log group
+        "logs:PutLogEvents",               // Allows writing actual log events to a log stream
+        "logs:DescribeLogGroups",     // Allows listing/reading existing log groups
+        "logs:DescribeLogStreams"     // Allows listing/reading streams in a log group
+      ],
+      "Resource": "arn:aws:logs:*:*:*"  // For ALL log groups/streams for all regions/accounts
+    }
+  ]
+} }
+
+6. Click “Next”
+7. Name and Describe the Policy
+•	Name: CloudWatchLogsCreationPolicy
+•	Description: (Optional) Allows creation and management of CloudWatch Logs groups, streams, and events.
+8. Click “Create Policy”
+•	Confirm details and click “Create policy”
+________________________________________
+
+The CloudWatchLogsCreationPolicy is now created and ready to be attached to IAM roles, users, or groups. Any test runs on localhost on your test dev machine will have logs created.
+
+2. Update part of your views.py file to include logging capabilites. Check the following script shown in bold to work script modifications including within your create_post function as well.
+
+# blog/views.py
+from .monitoring import log_to_cloudwatch
+import logging
+
+def create_post(request):
+    if request.method == 'POST':
+        form = PostForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                post = form.save(commit=False)
+                post.author = request.user
+                post.save()
+                log_message = f"New post created: {post.title}"
+                log_to_cloudwatch(log_message, "DjangoBlogLogs", "PostCreation")
+                logger.info(log_message)
+                return redirect('post_detail', pk=post.pk)
+            except Exception as e:
+                error_message = f"Error creating post: {str(e)}"
+                log_to_cloudwatch(error_message, "DjangoBlogLogs", "PostCreationError")
+                logger.error(error_message)
+                form.add_error(None, "An error occurred creating the post. Please try again.")
+    else:
+        form = PostForm()
+    return render(request, 'blog/create_post.html', {'form': form})
+
+3.  Make sure to run migrations after updating your models:    
+python manage.py makemigrations
+python manage.py migrate
+
+4. Update your requirements.txt file to include the new dependencies:
+python-decouple
+django-storages
+boto3
+
+Find out what versions to add in the requirements file. Example follows:
+python-decouple==3.8
+django-storages==1.14.6 
+boto3==1.38.36
+
+Commands to show versions
+pip show python-decouple
+pip show django-storages
+pip show boto3 
+
+Of course if you want to save all your dependencies within your virtual environment
+you can just do:
+pip freeze > requirements.txt
+
+5. Create a sample post with an image for localhost:8000/post/new. Make sure to start your server -> python3 manage.py runserver and virtual environment.
+ 
+View your logs at either the
+a.	AWS console
+•  Open the AWS Management Console
+•  Navigate to CloudWatch
+•  Click on "Log groups" in the left sidebar
+•  Look for the log group named "DjangoBlogLogs"
+•  Click on the log group and then on the log stream "PostCreation"
+You should see log entries for each new post created, including the post title.
+       Or 
+b.	Manually view any logs via AWS cli.
+aws logs get-log-events --log-group-name <your-log-group-name> --log-stream-name <your-log-stream-name>
+
+Snapshot your newly created log stream after blog post creation.
+
+*Test thoroughly to ensure that image uploads are working correctly with S3 and that logs are being sent to CloudWatch.
+
+Step 7: Update GitHub Repository
+
+1. Add to and / or adjust your django.yml with mandatory settings to allow for all tests to pass with the newly added S3 Integration as follows:
+
+Add before any tests a .env file as follows:
+
+# This creates a .env file with your secrets
+      - name: Create .env file
+        run: |
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "AWS_STORAGE_BUCKET_NAME=${{ secrets.AWS_STORAGE_BUCKET_NAME }}" >> .env
+          echo "DB_NAME=blog_db" >> .env
+          echo "DB_USER=root" >> .env
+          echo "DB_PASSWORD=jp" >> .env
+          echo "DB_HOST=127.0.0.1" >> .env
+
+      - name: Run Django checks
+        run: |
+          python3 blog_project/manage.py check
+
+Adjust Run Tests section the following env section:
+
+      - name: Run Tests
+        env:
+          DJANGO_SETTINGS_MODULE: blog_project.settings
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
+          DB_NAME: blog_db
+          DB_USER: root
+          DB_PASSWORD: jp
+          DB_HOST: 127.0.0.1
+        run: |
+          python3 blog_project/manage.py test blog
+
+2. Make sure your repo has all your Secrets especially AWS_STORAGE_BUCKET_NAME with your Bucket Name, added under Settings at the top menu then under Security > Secrets and variables > Actions in GitHub
+
+ 
+
+3. Commit your changes:
+git add .
+git commit -m "Add blog post form, admin customization, and S3 integration"
+git push origin main
+
+4. To view the webpage on EC2:
+•	Ensure your EC2 and RDS instances are started
+•	SSH into your EC2 instance
+ssh .pem" ubuntu@your-ec2-public-ip -i "your-key
+•	Run curl command to see if localhost depicts posts over port 8000
+
+     If any issues exit - check the GitHub Actions workflow:
+•	Go to your GitHub repository
+•	Click on the "Actions" tab
+•	Select your deployment workflow
+•	Click "Run workflow"
+
+If test runs without error(s) your updated image should be deployed to your EC2. 
+     instance.
+
+     Find your EC2 public ip. Make sure your public IP is available to be viewed and has   
+     access. Snapshot your running web page with an image inserted.
+     -Sample run on EC2 via PUBLIC DNS (IP) via port 8000 follows
+ 
+Step 8: View Git Commits
+
+To view all commits:
+
+git log --oneline --graph --all
+
+Include this log into a text file called commits.txt for submittal credit.
+
+Step 9: Update README.md
+
+Update your README.md file with any instructions to bonify a completed project and include screenshots as follows:
+ 
+# Django Blog Project
+
+## Setup and Deployment
+Example
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Run migrations: `python manage.py migrate`
+4. Create a superuser: `python manage.py createsuperuser`
+5. Run the development server: `python manage.py runserver`
+## Docker Deployment
+Example
+1. Build the Docker image: `docker-compose build`
+2. Run the Docker containers: `docker-compose up -d`
+
+## EC2 Deployment
+Example
+1. SSH into your EC2 instance
+2. Pull the latest changes: `git pull origin main`
+3. Rebuild and restart Docker containers: `docker-compose up --build -d`
+
+## Code snippets of pertinence?
+
+##Issues encountered report or log(s)?
+
+##Security inclusions?
+
+## Screenshots
+
+1. EC2 Blog Post Form with record insertion:
+![Blog Post Form](images/blog-post-form.png)
+
+2. Admin Interface:
+![Admin Interface](images/admin-interface.png)
+
+3. CloudWatch Logs:
+![CloudWatch Logs](images/cloudwatch-logs.png)
+
+4. S3 Bucket with Uploaded Image from AWS console:
+![S3 Bucket](images/s3-bucket.png)
+
+5. Your commits 
+![Commits](images/commits.txt)
+
+Push your README.md changes and updates to Github
+
+git add README.md images/
+git commit -m "Update README with new features and screenshots"
+git push origin main
+

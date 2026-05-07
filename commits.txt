@@ -1,0 +1,25 @@
+* 8f80d66 (HEAD -> main, origin/main) Add blog post form, admin customization, and S3 integration
+* 87bef5c Sprint3: Updated README with setup instructions
+* db2440b Sprint3: Updated README with setup instructions and add screenshots
+* b352ed9 moved .github folder to root directory
+* 324fabd migrated all contents of Django_Project folder to the root directory and renamed root directory
+* e31b4f2 moved blog_project folder up to root folder
+* 3f032a7 removed .github directory from root folder
+* 916c865 copied .github directory to orginal folder
+*   50bdeaf Resolve git merge conflict by removing extra deploy workflow
+|\  
+| * 2965cbc Update deploy.yml
+* | 10bacc9 moved .github directory to root folder for Github to see workflows
+|/  
+* 00741cd Completed Steps 1-4 of Sprint 3
+* d3f531a 2nd Try: Update README with setup instructions and add screenshots for Sprint 2
+* 8c0f09d completed tooling exercise 2
+* bb3b75e Update workflow to use main branch
+* 0c303f5 posted 2 blog posts onto Blog app
+* b28ea45 Second test to add Django Project into git with Sprint 1 Steps 1-8 complete
+* a826019 Steps 1-2 of Sprint 1 performed
+* aa05a98 test commit
+* 52ff804 test commit
+* 1e5b5c1 test commit
+* 8548368 inital commit from step 3 of Tooling Exercise 1
+* 2f79654 inital commit from step 3 of Tooling Exercise 1
