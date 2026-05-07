@@ -121,3 +121,22 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+
+from decouple import config
+
+INSTALLED_APPS += ['storages']
+
+AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-west-1')
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None
+MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/"
+
+import sys
+print("FORCING S3 STORAGE BACKEND")
+from storages.backends.s3boto3 import S3Boto3Storage
+sys.modules['django.core.files.storage'].__dict__['default_storage'] = S3Boto3Storage()
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
